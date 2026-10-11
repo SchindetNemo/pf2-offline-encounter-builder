@@ -170,6 +170,7 @@ const state = {
   encounter: [],
   sort: { key: "l", dir: 1 },
   tab: "overview",
+  hideZero: false,
 };
 let shown = PAGE;
 let uid = 1;
@@ -188,6 +189,7 @@ function loadState() {
   for (const k of ["name", "relMin", "relMax"]) if (k in s) state[k] = s[k];
   if (s.sort) state.sort = s.sort;
   if (s.tab) state.tab = s.tab;
+  if (s.hideZero) state.hideZero = true;
   state.encounter = (s.encounter || []).filter(e => BY_ID.has(e.id)).map(e => ({ ...e, uid: uid++ }));
 }
 function saveState() { store.set("eb-state", { ...state, encounter: state.encounter.map(({ uid: _, ...e }) => e) }); }
@@ -223,8 +225,10 @@ function threatOf(xp) {
 
 /* ---------- filtering ---------- */
 
-function matchesFilters(c) {
+/** skipKey: leave one dropdown out (used for its live option counts). */
+function matchesFilters(c, skipKey = null) {
   for (const f of FILTERS) {
+    if (f.key === skipKey) continue;
     const st = state.filters[f.key];
     const vals = c._f[f.key];
     if (st.exc.length && vals.some(v => st.exc.includes(v))) return false;
@@ -245,6 +249,21 @@ function relOk(level) {
   const rel = level - state.party.level;
   return rel >= state.relMin && rel <= state.relMax;
 }
+/**
+ * Option counts for one dropdown among creatures passing every *other* choice and the level window.
+ * Its own choices are ignored ("undead" must not grey out "dragon"), except in All mode where they narrow.
+ */
+function liveCounts(f) {
+  const st = state.filters[f.key];
+  const skip = st.mode === "all" && f.multi && st.inc.length ? null : f.key;
+  const m = new Map();
+  for (const c of D.creatures) {
+    if (!relOk(c.l) || !matchesFilters(c, skip)) continue;
+    for (const v of c._f[f.key]) m.set(v, (m.get(v) || 0) + 1);
+  }
+  return m;
+}
+
 function filtered() {
   return D.creatures.filter(c => relOk(c.l) && matchesFilters(c));
 }
@@ -464,7 +483,7 @@ function toggleDD(f, wrap) {
       const b = document.createElement("button");
       b.textContent = m === "any" ? "Any" : "All";
       b.className = st.mode === m ? "on" : "";
-      b.addEventListener("click", () => { st.mode = m; seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); onFiltersChanged(); });
+      b.addEventListener("click", () => { st.mode = m; seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); renderList(); onFiltersChanged(); });
       seg.appendChild(b);
     }
     tools.appendChild(seg);
@@ -479,8 +498,10 @@ function toggleDD(f, wrap) {
   panel.appendChild(tools);
 
   const hint = document.createElement("div");
-  hint.className = "dd-hint";
-  hint.textContent = "Click once to require, twice to exclude.";
+  hint.className = "dd-hint dd-hint-row";
+  hint.innerHTML = `<span>Click once to require, twice to exclude.</span>
+    <label title="Hide options that would leave no results with the other filters"><input type="checkbox"${state.hideZero ? " checked" : ""}> Hide unavailable</label>`;
+  hint.querySelector("input").addEventListener("change", e => { state.hideZero = e.target.checked; saveState(); renderList(); });
   panel.appendChild(hint);
 
   let search = null;
@@ -515,18 +536,31 @@ function toggleDD(f, wrap) {
     const q = search ? search.value.trim().toLowerCase() : "";
     let lastGroup = null;
     // checked values first so they stay visible in long lists
+    const live = liveCounts(f);
     const checked = f.options.filter(v => st.inc.includes(v) || st.exc.includes(v));
     const matching = f.options.filter(v => !checked.includes(v) && (!q || f.fmt(v).toLowerCase().includes(q)));
-    const rest = matching.slice(0, DD_RENDER_CAP);
-    shownRest = q ? matching : [];
+    const available = matching.filter(v => live.get(v));
+    const unavailable = state.hideZero ? [] : matching.filter(v => !live.get(v));
+    const ordered = [...available, ...unavailable];
+    const rest = ordered.slice(0, DD_RENDER_CAP);
+    shownRest = q ? available : [];
     if (checkAll) {
-      checkAll.hidden = !q || !matching.length;
-      checkAll.textContent = `Require any of the ${matching.length.toLocaleString()} matching “${q}”`;
+      checkAll.hidden = !q || !available.length;
+      checkAll.textContent = `Require any of the ${available.length.toLocaleString()} matching “${q}”`;
     }
-    capNote.hidden = matching.length <= DD_RENDER_CAP;
-    capNote.textContent = `${(matching.length - DD_RENDER_CAP).toLocaleString()} more — type to narrow the list.`;
+    capNote.hidden = ordered.length <= DD_RENDER_CAP;
+    capNote.textContent = `${(ordered.length - DD_RENDER_CAP).toLocaleString()} more — type to narrow the list.`;
     for (const v of [...checked, ...rest]) {
-      if (f.groupOf && !checked.includes(v)) {
+      const zero = !live.get(v);
+      if (zero && !checked.includes(v)) {
+        if (lastGroup !== "__none") {
+          const gh = document.createElement("div");
+          gh.className = "dd-group";
+          gh.textContent = "No results with current filters";
+          list.appendChild(gh);
+          lastGroup = "__none";
+        }
+      } else if (f.groupOf && !checked.includes(v)) {
         const g = f.groupOf(v);
         if (g !== lastGroup) {
           const gh = document.createElement("div");
@@ -538,8 +572,8 @@ function toggleDD(f, wrap) {
       }
       const row = document.createElement("button");
       const s = st.inc.includes(v) ? "inc" : st.exc.includes(v) ? "exc" : "";
-      row.className = "dd-opt " + s;
-      row.innerHTML = `<span class="box">${s === "inc" ? "✓" : s === "exc" ? "✕" : ""}</span><span class="name"></span><span class="cnt">${f.counts.get(v)}</span>`;
+      row.className = "dd-opt " + s + (zero ? " zero" : "");
+      row.innerHTML = `<span class="box">${s === "inc" ? "✓" : s === "exc" ? "✕" : ""}</span><span class="name"></span><span class="cnt">${live.get(v) || 0}</span>`;
       row.querySelector(".name").textContent = f.fmt(v);
       row.title = f.fmt(v);
       row.addEventListener("click", () => {
@@ -913,9 +947,16 @@ function encounterSummary() {
   return { budget, xp, threat: entries.some(e => e.xp == null) ? "beyond extreme" : threatOf(xp), entries };
 }
 
+/** Folder name: "L5 Moderate – Lich, 3× Goblin Warrior", or "L5 Moderate – <typed name>". */
+function folderName(sum, typed) {
+  const parts = sum.entries.slice(0, 3).map(e => (e.count > 1 ? `${e.count}× ` : "") + e.name);
+  const more = sum.entries.length > 3 ? ` +${sum.entries.length - 3} more` : "";
+  return `L${state.party.level} ${cap(state.party.difficulty)} – ${typed || parts.join(", ") + more}`;
+}
+
 function foundryMacro() {
-  const name = document.getElementById("saveName").value.trim() || "Encounter";
   const sum = encounterSummary();
+  const name = folderName(sum, document.getElementById("saveName").value.trim());
   const data = {
     name,
     party: { ...state.party },
@@ -923,12 +964,15 @@ function foundryMacro() {
     entries: sum.entries,
   };
   return `// PF2e Encounter Builder export: ${name.replace(/[\r\n]/g, " ")}
-// Script macro. Run as GM. Imports each creature from the pf2e compendiums into an actor folder,
+// Script macro. Run as GM. Imports each creature from the pf2e compendiums into Actors > Encounters > <this encounter>,
 // applies weak/elite through the pf2e system, and whispers a summary to the GM.
 const ENCOUNTER = ${JSON.stringify(data, null, 2)};
 
 if (!game.user.isGM) return ui.notifications.warn("Encounter import: run this macro as GM.");
-const folder = await Folder.create({ name: \`Encounter: \${ENCOUNTER.name}\`, type: "Actor", color: "#c9a04a" });
+const ROOT = "Encounters";
+const root = game.folders.find(f => f.type === "Actor" && !f.folder && f.name.toLowerCase() === ROOT.toLowerCase())
+  ?? await Folder.create({ name: ROOT, type: "Actor", color: "#c9a04a" });
+const folder = await Folder.create({ name: ENCOUNTER.name, type: "Actor", folder: root.id });
 const made = [];
 const missing = [];
 for (const e of ENCOUNTER.entries) {
@@ -937,7 +981,8 @@ for (const e of ENCOUNTER.entries) {
   // fall back to a name match in the same compendium if the id changed between system versions
   const id = index?.has(e.id) ? e.id : index?.find(i => i.name === e.name)?._id;
   if (!id) { missing.push(e); continue; }
-  const actor = await game.actors.importFromCompendium(pack, id, { folder: folder.id });
+  // keepId: false -> always a fresh copy; otherwise V12+ silently replaces an earlier import of the same creature
+  const actor = await game.actors.importFromCompendium(pack, id, { folder: folder.id }, { keepId: false });
   const canAdjust = typeof actor?.applyAdjustment === "function";
   if (e.adj !== "normal" && canAdjust) await actor.applyAdjustment(e.adj);
   made.push({ e, actor, adjusted: e.adj === "normal" || canAdjust });

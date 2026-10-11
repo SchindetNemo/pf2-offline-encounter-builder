@@ -262,3 +262,8 @@ td .entry + .entry { border-top: 1px dashed var(--line); margin-top: 4px; paddin
 .macro-dialog p { font-size: 13px; }
 .macro-dialog textarea { width: 100%; height: 340px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px; resize: vertical; }
 .macro-dialog .row-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+
+/* live (faceted) option counts */
+.dd-hint-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.dd-hint-row label { display: flex; gap: 4px; align-items: center; white-space: nowrap; cursor: pointer; }
+.dd-opt.zero:not(.inc):not(.exc) { opacity: .4; }
