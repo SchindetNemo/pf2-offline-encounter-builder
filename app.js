@@ -172,6 +172,7 @@ const state = {
   sort: { key: "l", dir: 1 },
   tab: "overview",
   hideZero: false,
+  allLevels: false,
 };
 let shown = PAGE;
 let uid = 1;
@@ -191,6 +192,7 @@ function loadState() {
   if (s.sort) state.sort = s.sort;
   if (s.tab) state.tab = s.tab;
   if (s.hideZero) state.hideZero = true;
+  if (s.allLevels) state.allLevels = true;
   state.encounter = (s.encounter || []).filter(e => BY_ID.has(e.id)).map(e => ({ ...e, uid: uid++ }));
 }
 function saveState() { store.set("eb-state", { ...state, encounter: state.encounter.map(({ uid: _, ...e }) => e) }); }
@@ -246,6 +248,10 @@ function matchesFilters(c, skipKey = null) {
   }
   return true;
 }
+/** Table and dropdown counts: "All levels" lifts the window. Random generation always uses relOk. */
+function browseOk(level) {
+  return state.allLevels || relOk(level);
+}
 function relOk(level) {
   const rel = level - state.party.level;
   return rel >= state.relMin && rel <= state.relMax;
@@ -259,14 +265,14 @@ function liveCounts(f) {
   const skip = st.mode === "all" && f.multi && st.inc.length ? null : f.key;
   const m = new Map();
   for (const c of D.creatures) {
-    if (!relOk(c.l) || !matchesFilters(c, skip)) continue;
+    if (!browseOk(c.l) || !matchesFilters(c, skip)) continue;
     for (const v of c._f[f.key]) m.set(v, (m.get(v) || 0) + 1);
   }
   return m;
 }
 
 function filtered() {
-  return D.creatures.filter(c => relOk(c.l) && matchesFilters(c));
+  return D.creatures.filter(c => browseOk(c.l) && matchesFilters(c));
 }
 
 /* ---------- random generation ---------- */
@@ -543,7 +549,7 @@ function toggleDD(f, wrap) {
     const live = liveCounts(f);
     const others = FILTERS.filter(o => o !== f && (state.filters[o.key].inc.length || state.filters[o.key].exc.length)).map(o => o.label);
     if (state.name) others.push("name search");
-    const lvl = `levels ${state.party.level + state.relMin}–${state.party.level + state.relMax}`;
+    const lvl = state.allLevels ? "all levels" : `levels ${state.party.level + state.relMin}–${state.party.level + state.relMax}`;
     limits.innerHTML = `Counts limited to ${lvl}` + (others.length ? ` and your other filters: <b>${esc(others.join(", "))}</b>` : "");
     const checked = f.options.filter(v => st.inc.includes(v) || st.exc.includes(v));
     const matching = f.options.filter(v => !checked.includes(v) && (!q || f.fmt(v).toLowerCase().includes(q)));
@@ -1021,6 +1027,12 @@ function openMacroDialog() {
 
 /* ---------- wiring ---------- */
 
+function syncAllLevels() {
+  document.getElementById("allLevels").checked = state.allLevels;
+  document.getElementById("relMin").disabled = state.allLevels;
+  document.getElementById("relMax").disabled = state.allLevels;
+}
+
 function syncPartyControls() {
   document.getElementById("partySize").value = state.party.size;
   document.getElementById("partyLevel").value = state.party.level;
@@ -1045,6 +1057,8 @@ function init() {
   on("partySize", "change", e => { state.party.size = +e.target.value; renderEncounter(); });
   on("partyLevel", "change", e => { state.party.level = +e.target.value; shown = PAGE; renderTable(); renderEncounter(); });
   on("difficulty", "change", e => { state.party.difficulty = e.target.value; renderEncounter(); });
+  syncAllLevels();
+  on("allLevels", "change", e => { state.allLevels = e.target.checked; syncAllLevels(); onFiltersChanged(); });
   on("relMin", "change", e => {
     state.relMin = +e.target.value;
     if (state.relMax < state.relMin) { state.relMax = state.relMin; document.getElementById("relMax").value = state.relMax; }
@@ -1060,7 +1074,8 @@ function init() {
   on("clearFilters", "click", () => {
     for (const f of FILTERS) state.filters[f.key] = { inc: [], exc: [], mode: "any" };
     state.name = ""; document.getElementById("nameSearch").value = "";
-    state.relMin = -4; state.relMax = 4;
+    state.relMin = -4; state.relMax = 4; state.allLevels = false;
+    syncAllLevels();
     document.getElementById("relMin").value = -4; document.getElementById("relMax").value = 4;
     closeDD();
     onFiltersChanged();

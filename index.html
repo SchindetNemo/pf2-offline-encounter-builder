@@ -14,7 +14,6 @@
 <section class="filters">
   <div id="filterBar" class="filter-bar"></div>
   <div class="filter-extra">
-    <input id="nameSearch" type="search" placeholder="Name contains…" autocomplete="off">
     <button id="clearFilters" class="ghost">Clear filters</button>
     <span id="matchCount" class="muted"></span>
   </div>
@@ -31,6 +30,7 @@
       <div class="level-range">
         <span>Creature levels</span>
         <select id="relMin"></select><span class="to">to</span><select id="relMax"></select>
+        <label class="all-levels" title="Browse every level in the table. Random encounters still use the party −4 to +4 window."><input type="checkbox" id="allLevels"> All</label>
       </div>
       <div class="budget">
         <div><span class="k">Budget</span><span id="budget" class="v">0</span></div>
@@ -78,7 +78,10 @@
   </aside>
 
   <section class="results">
-    <div id="tabs" class="tabs" role="tablist"></div>
+    <div class="tab-bar">
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <input id="nameSearch" type="search" placeholder="Name contains…" autocomplete="off">
+    </div>
     <div class="table-wrap">
       <table id="table">
         <thead id="thead"></thead>
