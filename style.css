@@ -267,3 +267,5 @@ td .entry + .entry { border-top: 1px dashed var(--line); margin-top: 4px; paddin
 .dd-hint-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .dd-hint-row label { display: flex; gap: 4px; align-items: center; white-space: nowrap; cursor: pointer; }
 .dd-opt.zero:not(.inc):not(.exc) { opacity: .4; }
+.dd-limits { border-left: 2px solid var(--accent); padding-left: 6px; }
+.dd-limits b { color: var(--text); font-weight: 600; }

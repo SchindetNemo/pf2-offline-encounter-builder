@@ -11,7 +11,7 @@ import re
 HERE = os.path.dirname(os.path.abspath(__file__))
 GLOSSARY = os.path.join(HERE, "lang-glossary.json")
 # Installed Foundry pf2e system; only read to refresh lang-glossary.json when it is reachable.
-FOUNDRY_LANG = "/media/nemo/UbuntuApps/home/home/nemo/.local/share/FoundryVTT/Data/systems/pf2e/lang/en.json"
+FOUNDRY_LANG = "/home/nemo/.local/share/FoundryVTT/Data/systems/pf2e/lang/en.json"
 
 ALLOWED_TAGS = {"p", "strong", "b", "em", "i", "hr", "ul", "ol", "li", "br", "table", "tr", "td", "th", "tbody", "thead", "h2", "h3", "h4"}
 ACTION_GLYPH = {1: "1", 2: "2", 3: "3", "reaction": "r", "free": "f"}

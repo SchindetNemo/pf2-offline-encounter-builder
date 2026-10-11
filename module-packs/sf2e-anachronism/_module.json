@@ -1,0 +1,45 @@
+{
+ "id": "sf2e-anachronism",
+ "title": "Starfinder Anachronism: Official Starfinder Content Pack for Pathfinder Second Edition",
+ "version": "2.2.0",
+ "group": "Starfinder",
+ "game": "sf2e",
+ "packs": {
+  "alien-core-bestiary": {
+   "label": "Alien Core",
+   "collection": "sf2e-anachronism.alien-core-bestiary",
+   "game": "sf2e",
+   "count": 247
+  },
+  "guilt-of-the-grave-world-bestiary": {
+   "label": "Guilt of the Grave World",
+   "collection": "sf2e-anachronism.guilt-of-the-grave-world-bestiary",
+   "game": "sf2e",
+   "count": 39
+  },
+  "standalone-adventure-bestiary": {
+   "label": "Standalone Adventures",
+   "collection": "sf2e-anachronism.standalone-adventure-bestiary",
+   "game": "sf2e",
+   "count": 21
+  },
+  "starfinder-society-bestiary": {
+   "label": "Starfinder Society",
+   "collection": "sf2e-anachronism.starfinder-society-bestiary",
+   "game": "sf2e",
+   "count": 75
+  },
+  "rulebook-bestiaries": {
+   "label": "Rulebooks",
+   "collection": "sf2e-anachronism.rulebook-bestiaries",
+   "game": "sf2e",
+   "count": 34
+  },
+  "tales-from-the-vast-bestiary": {
+   "label": "Tales from the Vast",
+   "collection": "sf2e-anachronism.tales-from-the-vast-bestiary",
+   "game": "sf2e",
+   "count": 94
+  }
+ }
+}

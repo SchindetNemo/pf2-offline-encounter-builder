@@ -16,7 +16,8 @@ const SIZE = { tiny: "Tiny", sm: "Small", med: "Medium", lg: "Large", huge: "Hug
 const SIZE_ORDER = Object.keys(SIZE);
 const RARITY = ["common", "uncommon", "rare", "unique"];
 const NO_ROLE = "No clear role";
-const GROUP_ORDER = ["Rulebooks", "Adventure Paths", "Adventures", "Pathfinder Society", "Web & Misc", "Other"];
+const GROUP_ORDER = ["Rulebooks", "Adventure Paths", "Adventures", "Pathfinder Society", "Battlezoo", "Starfinder", "Web & Misc", "Other"];
+const edition = c => (c.g === "sf2e" ? "Starfinder" : c.rm ? "Remaster" : "Legacy");
 const PAGE = 200;
 
 /* ---------- filter definitions ---------- */
@@ -109,7 +110,7 @@ const FILTERS = [
   { key: "group", section: "General", label: "Source group", multi: true, get: c => uniq(c.s.map(i => SRC[i].g)), order: GROUP_ORDER },
   { key: "source", section: "General", label: "Source", multi: true, search: true, get: c => c.s.map(i => SRC[i].n),
     order: "alpha", groupOf: v => SRC.find(s => s.n === v).g },
-  { key: "edition", section: "General", label: "Edition", get: c => [c.rm ? "Remaster" : "Legacy"], order: ["Remaster", "Legacy"] },
+  { key: "edition", section: "General", label: "Edition", get: c => [edition(c)], order: ["Remaster", "Legacy", "Starfinder"] },
 
   { key: "ability", section: "Abilities & defenses", label: "Abilities & senses", multi: true, search: true, order: "count",
     get: abilityValues, groupOf: abilityGroup, groupOrder: ["Ability groups", "Senses", "Abilities"] },
@@ -524,6 +525,9 @@ function toggleDD(f, wrap) {
     });
     panel.appendChild(checkAll);
   }
+  const limits = document.createElement("div");
+  limits.className = "dd-hint dd-limits";
+  panel.appendChild(limits);
   const list = document.createElement("div");
   list.className = "dd-list";
   panel.appendChild(list);
@@ -537,6 +541,10 @@ function toggleDD(f, wrap) {
     let lastGroup = null;
     // checked values first so they stay visible in long lists
     const live = liveCounts(f);
+    const others = FILTERS.filter(o => o !== f && (state.filters[o.key].inc.length || state.filters[o.key].exc.length)).map(o => o.label);
+    if (state.name) others.push("name search");
+    const lvl = `levels ${state.party.level + state.relMin}–${state.party.level + state.relMax}`;
+    limits.innerHTML = `Counts limited to ${lvl}` + (others.length ? ` and your other filters: <b>${esc(others.join(", "))}</b>` : "");
     const checked = f.options.filter(v => st.inc.includes(v) || st.exc.includes(v));
     const matching = f.options.filter(v => !checked.includes(v) && (!q || f.fmt(v).toLowerCase().includes(q)));
     const available = matching.filter(v => live.get(v));
@@ -901,7 +909,7 @@ function openDrawer(c) {
       </div>
       ${statblockHtml(c, sb)}
       ${msg ? `<p class="note">${msg}</p>` : ""}
-      <p class="note">${sources} · ${c.rm ? "Remaster" : "Legacy"}</p>
+      <p class="note">${sources} · ${edition(c)}</p>
     </div>`;
     document.getElementById("drawerAdd").addEventListener("click", () => addToEncounter(c.id));
   };
@@ -941,7 +949,7 @@ function encounterSummary() {
   const entries = state.encounter.map(e => {
     const c = BY_ID.get(e.id);
     const pack = c.id.split("/")[0];
-    return { name: c.n, pack: D.packs[pack] || pack, id: c.u, adj: c.k === "c" ? e.adj : "normal", count: e.count, xp: xpFor(c, e.adj) == null ? null : xpFor(c, e.adj) * e.count };
+    return { name: c.n, pack: D.packs[pack] || "pf2e." + pack, id: c.u, adj: c.k === "c" ? e.adj : "normal", count: e.count, xp: xpFor(c, e.adj) == null ? null : xpFor(c, e.adj) * e.count };
   });
   const xp = entries.reduce((a, e) => a + (e.xp || 0), 0);
   return { budget, xp, threat: entries.some(e => e.xp == null) ? "beyond extreme" : threatOf(xp), entries };
@@ -976,7 +984,7 @@ const folder = await Folder.create({ name: ENCOUNTER.name, type: "Actor", folder
 const made = [];
 const missing = [];
 for (const e of ENCOUNTER.entries) {
-  const pack = game.packs.get(\`pf2e.\${e.pack}\`);
+  const pack = game.packs.get(e.pack);
   const index = pack ? await pack.getIndex() : null;
   // fall back to a name match in the same compendium if the id changed between system versions
   const id = index?.has(e.id) ? e.id : index?.find(i => i.name === e.name)?._id;
@@ -990,7 +998,7 @@ for (const e of ENCOUNTER.entries) {
 
 const adjLabel = a => (a === "normal" ? "" : \` (\${a})\`);
 const rows = made.map(({ e, actor, adjusted }) => \`<li>\${e.count}× @UUID[\${actor.uuid}]{\${actor.name}}\${adjLabel(e.adj)}\${adjusted ? "" : " <strong>(apply weak/elite manually)</strong>"}: \${e.xp == null ? "more than 4 levels above the party" : e.xp + " XP"}</li>\`);
-const miss = missing.map(e => \`<li>\${e.count}× \${e.name}\${adjLabel(e.adj)} (not found in pf2e.\${e.pack})</li>\`);
+const miss = missing.map(e => \`<li>\${e.count}× \${e.name}\${adjLabel(e.adj)} (not found in \${e.pack}, is the module active?)</li>\`);
 const p = ENCOUNTER.party;
 await ChatMessage.create({
   whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id),

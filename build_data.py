@@ -2,7 +2,9 @@
 """Build the offline encounter-builder creature index from the local pf2e-system packs.
 
 Usage:
-  python3 -I encounter-builder/build_data.py          # writes data/creatures.js + data/statblocks/<pack>.js
+  python3 -I encounter-builder/build_data.py              # writes data/creatures.js + data/statblocks/<pack>.js
+  python3 -I encounter-builder/build_data.py --no-modules # pf2e system only (leave out module-packs/, e.g. premium Battlezoo)
+Module creatures come from module-packs/, refreshed with: node encounter-builder/export_modules.mjs
 Rerun after updating pf2e-system. Roles are derived per level from the data itself (see derive_roles).
 """
 import bisect
@@ -20,6 +22,7 @@ PROJECT = os.path.dirname(HERE)
 PACKS = os.path.join(PROJECT, "pf2e-system", "packs", "pf2e")
 OUT = os.path.join(HERE, "data", "creatures.js")
 SB_DIR = os.path.join(HERE, "data", "statblocks")
+MODULE_PACKS = os.path.join(HERE, "module-packs")
 
 ROLES = ["Brute", "Magical Striker", "Skill Paragon", "Skirmisher", "Sniper", "Soldier", "Spellcaster"]
 
@@ -164,20 +167,39 @@ def details(d):
     return {k: v for k, v in out.items() if v not in ([], None, {})}
 
 
-def load():
+def _read(f):
+    try:
+        with open(f) as fh:
+            d = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return d if isinstance(d, dict) and d.get("type") in ("npc", "hazard") else None
+
+
+def load(with_modules=True):
+    """Rows of (key, document, module meta or None). key = '<pack>/<path>' without .json."""
     rows = []
     for f in sorted(glob.glob(os.path.join(PACKS, "**", "*.json"), recursive=True)):
-        if os.path.basename(f).startswith("_"):
-            continue
-        try:
-            with open(f) as fh:
-                d = json.load(fh)
-        except (OSError, ValueError):
-            continue
-        if not isinstance(d, dict) or d.get("type") not in ("npc", "hazard"):
-            continue
-        rows.append((os.path.relpath(f, PACKS), d))
+        if not os.path.basename(f).startswith("_") and (d := _read(f)):
+            rows.append((os.path.relpath(f, PACKS)[:-5], d, None))
+    if with_modules:
+        for info_file in sorted(glob.glob(os.path.join(MODULE_PACKS, "*", "_module.json"))):
+            with open(info_file) as fh:
+                info = json.load(fh)
+            for pack, pinfo in info["packs"].items():
+                meta = {"group": info["group"], "game": pinfo.get("game", info["game"]), "collection": pinfo["collection"]}
+                for f in sorted(glob.glob(os.path.join(os.path.dirname(info_file), pack, "*.json"))):
+                    if d := _read(f):
+                        rows.append((f"{pinfo['collection']}/{d['_id']}", d, meta))
     return rows
+
+
+def module_names():
+    names = {}
+    for f in glob.glob(os.path.join(MODULE_PACKS, "*", "_names.json")):
+        with open(f) as fh:
+            names.update(json.load(fh))
+    return names
 
 
 def features(d):
@@ -265,12 +287,13 @@ def compendium_names():
             packs = json.load(fh).get("packs", [])
     except (OSError, ValueError):
         return {}
-    return {os.path.basename(p.get("path", "")): p["name"] for p in packs if p.get("type") == "Actor"}
+    return {os.path.basename(p.get("path", "")): "pf2e." + p["name"] for p in packs if p.get("type") == "Actor"}
 
 
 def write_statblocks(creatures, docs):
     """One JS shard per pack: window.EB_SB_ADD({id: statblock, ...})."""
     en = Enricher(PACKS)
+    en.names.update(module_names())
     for attempt in (1, 2):
         shards = collections.defaultdict(dict)
         for c in creatures:
@@ -298,10 +321,11 @@ def write_statblocks(creatures, docs):
 
 
 def main():
-    rows = load()
+    with_modules = "--no-modules" not in sys.argv
+    rows = load(with_modules)
     dist = LevelDist()
     feats = {}
-    for path, d in rows:
+    for path, d, meta in rows:
         if d["type"] != "npc":
             continue
         lvl = d["system"]["details"]["level"]["value"]
@@ -315,15 +339,17 @@ def main():
     sources, src_idx = [], {}
     merged = {}
     docs = {}
-    for path, d in rows:
+    for path, d, meta in rows:
         s = d["system"]
         det = s["details"]
         lvl = det["level"]["value"]
         pub = det.get("publication") or {}
-        title = pub.get("title") or "Unknown"
+        title = pub.get("title") or (meta["group"] if meta else "Unknown")
+        if meta and meta["game"] == "sf2e" and "(Pathfinder)" in title:
+            title = title.replace("(Pathfinder)", "(Starfinder)")  # Elemental Storm labels both packs "(Pathfinder)"
         if title not in src_idx:
             src_idx[title] = len(sources)
-            sources.append({"n": title, "g": source_group(title)})
+            sources.append({"n": title, "g": meta["group"] if meta else source_group(title)})
         tr = s.get("traits") or {}
         at = s.get("attributes") or {}
         if d["type"] == "hazard":
@@ -334,7 +360,7 @@ def main():
             roles = derive_roles(lvl, feats[path], dist)
         hp = (at.get("hp") or {}).get("max")
         ac = (at.get("ac") or {}).get("value")
-        key = (d["name"].lower(), lvl, kind, hp, ac)
+        key = (d["name"].lower(), lvl, kind, hp, ac, meta["game"] if meta else "pf2e")
         if key in merged:
             m = merged[key]
             if src_idx[title] not in m["s"]:
@@ -342,9 +368,9 @@ def main():
             m["rm"] = m["rm"] or bool(pub.get("remaster"))
             continue
         saves = s.get("saves") or {}
-        docs[path[:-5]] = d
+        docs[path] = d
         merged[key] = {
-            "id": path[:-5],  # pack/file without .json: key for the stat-block shards
+            "id": path,  # pack/file without .json: key for the stat-block shards
             "u": d["_id"],  # Foundry document id inside the pf2e compendium (for the macro export)
             "n": d["name"],
             "l": lvl,
@@ -355,6 +381,7 @@ def main():
             "ro": roles,
             "s": [src_idx[title]],
             "rm": bool(pub.get("remaster")),
+            **({"g": meta["game"]} if meta and meta["game"] != "pf2e" else {}),
             "hp": hp,
             "ac": ac,
             "sv": [(saves.get(x) or {}).get("value") for x in ("fortitude", "reflex", "will")],
@@ -363,7 +390,9 @@ def main():
         }
 
     creatures = sorted(merged.values(), key=lambda c: (c["n"].lower(), c["l"]))
-    data = {"version": 1, "roles": ROLES, "sources": sources, "packs": compendium_names(), "creatures": creatures}
+    packs = compendium_names()
+    packs.update({m["collection"]: m["collection"] for _, _, m in rows if m})
+    data = {"version": 1, "roles": ROLES, "sources": sources, "packs": packs, "creatures": creatures}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as fh:
         fh.write("window.EB_DATA = ")

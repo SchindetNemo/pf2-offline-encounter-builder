@@ -1,0 +1,15 @@
+{
+ "id": "battlezoo-bestiary-pf2e",
+ "title": "Battlezoo Bestiary for Pathfinder 2e by Roll For Combat",
+ "version": "2.9",
+ "group": "Battlezoo",
+ "game": "pf2e",
+ "packs": {
+  "pf2e-battlezoo-bestiary": {
+   "label": "Creatures",
+   "collection": "battlezoo-bestiary-pf2e.pf2e-battlezoo-bestiary",
+   "game": "pf2e",
+   "count": 118
+  }
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "id": "battlezoo-bestiary-su-pf2e",
+ "title": "Battlezoo Bestiary: Strange and Unusual for Pathfinder 2e by Roll For Combat",
+ "version": "1.5.1",
+ "group": "Battlezoo",
+ "game": "pf2e",
+ "packs": {
+  "pf2e-battlezoo-su-actors": {
+   "label": "Creatures",
+   "collection": "battlezoo-bestiary-su-pf2e.pf2e-battlezoo-su-actors",
+   "game": "pf2e",
+   "count": 159
+  }
+ }
+}

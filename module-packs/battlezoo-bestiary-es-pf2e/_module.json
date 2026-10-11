@@ -1,0 +1,21 @@
+{
+ "id": "battlezoo-bestiary-es-pf2e",
+ "title": "Battlezoo Bestiary: Elemental Storm for Pathfinder 2e by Roll For Combat",
+ "version": "1.3.1",
+ "group": "Battlezoo",
+ "game": "pf2e",
+ "packs": {
+  "bestiary": {
+   "label": "Bestiary",
+   "collection": "battlezoo-bestiary-es-pf2e.bestiary",
+   "game": "pf2e",
+   "count": 171
+  },
+  "sf2e-bestiary": {
+   "label": "Bestiary",
+   "collection": "battlezoo-bestiary-es-pf2e.sf2e-bestiary",
+   "game": "sf2e",
+   "count": 171
+  }
+ }
+}
