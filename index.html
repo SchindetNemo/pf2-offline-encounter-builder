@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PF2e Encounter Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>Encounter Builder</h1>
+</header>
+
+<section class="filters">
+  <div id="filterBar" class="filter-bar"></div>
+  <div class="filter-extra">
+    <label>Level <select id="relMin"></select> to <select id="relMax"></select></label>
+    <input id="nameSearch" type="search" placeholder="Name contains…" autocomplete="off">
+    <button id="clearFilters" class="ghost">Clear filters</button>
+    <span id="matchCount" class="muted"></span>
+  </div>
+</section>
+
+<main class="layout">
+  <aside class="encounter">
+    <div class="panel party-panel">
+      <div class="party">
+        <label><span>Size</span><select id="partySize"></select></label>
+        <label><span>Level</span><select id="partyLevel"></select></label>
+        <label><span>Difficulty</span><select id="difficulty"></select></label>
+      </div>
+      <div class="budget">
+        <div><span class="k">Budget</span><span id="budget" class="v">0</span></div>
+        <div><span class="k">Spent</span><span id="spent" class="v">0</span></div>
+        <div><span class="k">Left</span><span id="remaining" class="v">0</span></div>
+        <div><span class="k">Threat</span><span id="threat" class="v threat">—</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Encounter</h2>
+        <div class="row-actions">
+          <button id="clearEncounter" class="ghost" title="Remove all unlocked entries">Clear</button>
+        </div>
+      </div>
+      <div class="gen">
+        <button id="randomBtn" class="primary">Random encounter</button>
+        <div class="gen-opts">
+          <label>Structure <select id="structure">
+            <option value="any">Any</option>
+            <option value="solo">Solo boss</option>
+            <option value="boss">Boss + minions</option>
+            <option value="group">Pair / small group</option>
+            <option value="horde">Horde</option>
+            <option value="mixed">Mixed</option>
+          </select></label>
+          <label>Max entries <select id="maxCreatures"></select></label>
+          <label class="check"><input type="checkbox" id="allowRepeats" checked> Repeat creatures</label>
+          <label class="check"><input type="checkbox" id="allowAdjust" checked> Use weak/elite</label>
+        </div>
+        <p id="genMsg" class="msg" hidden></p>
+      </div>
+      <ul id="encounterList" class="enc-list"></ul>
+      <p id="encEmpty" class="muted empty">Add creatures from the table or roll a random encounter. Locked entries are kept when re-rolling.</p>
+      <div class="saves">
+        <input id="saveName" type="text" placeholder="Encounter name">
+        <button id="saveBtn">Save</button>
+        <select id="loadSelect"><option value="">Load saved…</option></select>
+        <button id="deleteSave" class="ghost" title="Delete selected save">Delete</button>
+        <button id="exportBtn" class="ghost">Export</button>
+        <label class="ghost file-btn">Import<input id="importFile" type="file" accept=".json,application/json" hidden></label>
+        <button id="macroBtn" class="ghost" title="Foundry VTT script macro that imports this encounter">Foundry macro</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="results">
+    <div id="tabs" class="tabs" role="tablist"></div>
+    <div class="table-wrap">
+      <table id="table">
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="more"><button id="moreBtn" class="ghost" hidden>Show more</button></div>
+  </section>
+</main>
+
+<dialog id="macroDialog" class="macro-dialog">
+  <div class="panel-head"><h2>Foundry macro</h2><button id="macroClose" class="ghost close" aria-label="Close">×</button></div>
+  <p class="muted">In Foundry: Macro Directory → Create Macro → Type <b>Script</b> → paste → Execute (as GM).
+    Creates an actor folder with one actor per entry (weak/elite applied) and whispers a summary to the GM.</p>
+  <textarea id="macroText" readonly spellcheck="false"></textarea>
+  <div class="row-actions"><button id="macroCopy" class="primary">Copy</button><button id="macroDownload">Download .js</button><span id="macroMsg" class="muted"></span></div>
+</dialog>
+
+<div id="drawer" class="drawer" hidden>
+  <div class="drawer-inner">
+    <button id="drawerClose" class="ghost close" aria-label="Close">×</button>
+    <div id="drawerBody"></div>
+  </div>
+</div>
+
+<script src="data/creatures.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
