@@ -14,7 +14,6 @@
 <section class="filters">
   <div id="filterBar" class="filter-bar"></div>
   <div class="filter-extra">
-    <label>Level <select id="relMin"></select> to <select id="relMax"></select></label>
     <input id="nameSearch" type="search" placeholder="Name contains…" autocomplete="off">
     <button id="clearFilters" class="ghost">Clear filters</button>
     <span id="matchCount" class="muted"></span>
@@ -28,6 +27,10 @@
         <label><span>Size</span><select id="partySize"></select></label>
         <label><span>Level</span><select id="partyLevel"></select></label>
         <label><span>Difficulty</span><select id="difficulty"></select></label>
+      </div>
+      <div class="level-range">
+        <span>Creature levels</span>
+        <select id="relMin"></select><span class="to">to</span><select id="relMax"></select>
       </div>
       <div class="budget">
         <div><span class="k">Budget</span><span id="budget" class="v">0</span></div>
